@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国人口密度分布图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        #map {
+            width: 100%;
+            height: 700px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .info-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        .info-panel h3 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .legend-info {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 700px;
+            font-size: 18px;
+            color: #666;
+            flex-direction: column;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🇨🇳 中国人口密度分布图</h1>
+        <p class="subtitle">数据可视化展示 | 单位：人/平方公里</p>
+        <div id="map">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div>🗺️ 正在加载高精度地图数据...</div>
+            </div>
+        </div>
+        <div class="info-panel">
+            <h3>📊 数据说明</h3>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">14.1 亿</div>
+                    <div class="stat-label">总人口 (2023)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">147 人/km²</div>
+                    <div class="stat-label">平均密度</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">34 个</div>
+                    <div class="stat-label">省级行政区</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">黑河 - 腾冲线</div>
+                    <div class="stat-label">人口分界线</div>
+                </div>
+            </div>
+            <div class="legend-info">
+                <strong>颜色说明：</strong>颜色越深表示人口密度越高。东部沿海地区人口密集，西部内陆地区人口稀疏。
+                数据基于 2023 年各省市统计年鉴，密度 = 常住人口 / 陆地面积。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var chartDom = document.getElementById('map');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        // 中国各省级行政区人口密度数据 (人/平方公里，2023 年估算)
+        const populationData = [
+            {name: '北京市', value: 1311},
+            {name: '天津市', value: 1157},
+            {name: '上海市', value: 3870},
+            {name: '重庆市', value: 350},
+            {name: '河北省', value: 378},
+            {name: '河南省', value: 558},
+            {name: '云南省', value: 117},
+            {name: '辽宁省', value: 299},
+            {name: '黑龙江省', value: 84},
+            {name: '湖南省', value: 314},
+            {name: '安徽省', value: 442},
+            {name: '山东省', value: 637},
+            {name: '新疆维吾尔自治区', value: 16},
+            {name: '江苏省', value: 797},
+            {name: '浙江省', value: 615},
+            {name: '江西省', value: 281},
+            {name: '湖北省', value: 329},
+            {name: '广西壮族自治区', value: 203},
+            {name: '甘肃省', value: 57},
+            {name: '山西省', value: 191},
+            {name: '内蒙古自治区', value: 20},
+            {name: '陕西省', value: 196},
+            {name: '吉林省', value: 146},
+            {name: '福建省', value: 344},
+            {name: '贵州省', value: 197},
+            {name: '广东省', value: 641},
+            {name: '青海省', value: 8},
+            {name: '宁夏回族自治区', value: 123},
+            {name: '海南省', value: 260},
+            {name: '四川省', value: 165},
+            {name: '西藏自治区', value: 3},
+            {name: '台湾省', value: 650},
+            {name: '香港特别行政区', value: 7060},
+            {name: '澳门特别行政区', value: 21000}
+        ];
+
+        // 从阿里云 DataV 加载高精度中国地图 GeoJSON
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(response => response.json())
+            .then(geoJson => {
+                echarts.registerMap('china', geoJson);
+                
+                option = {
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function(params) {
+                            if (params.value) {
+                                return `${params.name}<br/>人口密度：${params.value} 人/km²`;
+                            } else {
+                                return `${params.name}<br/>暂无数据`;
+                            }
+                        },
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderColor: '#e0e0e0',
+                        borderWidth: 1,
+                        textStyle: {
+                            color: '#333',
+                            fontSize: 13
+                        },
+                        padding: [12, 16],
+                        extraCssText: 'border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'
+                    },
+                    visualMap: {
+                        min: 0,
+                        max: 1000,
+                        left: '20',
+                        bottom: '40',
+                        text: ['高', '低'],
+                        calculable: true,
+                        inRange: {
+                            color: ['#f8f9fa', '#a8d5ba', '#5cb8a0', '#2d9a82', '#1a6d6a', '#0f4c5c']
+                        },
+                        textStyle: {
+                            color: '#333',
+                            fontSize: 12
+                        },
+                        itemWidth: 15,
+                        itemHeight: 100,
+                        show: true
+                    },
+                    geo: {
+                        map: 'china',
+                        roam: true,
+                        zoom: 1.2,
+                        label: {
+                            show: true,
+                            color: '#333',
+                            fontSize: 10,
+                            formatter: function(params) {
+                                const shortNames = {
+                                    '内蒙古自治区': '内蒙古',
+                                    '广西壮族自治区': '广西',
+                                    '西藏自治区': '西藏',
+                                    '宁夏回族自治区': '宁夏',
+                                    '新疆维吾尔自治区': '新疆',
+                                    '香港特别行政区': '香港',
+                                    '澳门特别行政区': '澳门'
+                                };
+                                return shortNames[params.name] || params.name;
+                            }
+                        },
+                        itemStyle: {
+                            areaColor: '#f0f0f0',
+                            borderColor: '#666',
+                            borderWidth: 1
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                color: '#fff',
+                                fontSize: 12,
+                                fontWeight: 'bold'
+                            },
+                            itemStyle: {
+                                areaColor: '#e74c3c',
+                                shadowColor: 'rgba(0,0,0,0.3)',
+                                shadowBlur: 10
+                            }
+                        }
+                    },
+                    series: [
+                        {
+                            name: '人口密度',
+                            type: 'map',
+                            map: 'china',
+                            geoIndex: 0,
+                            data: populationData,
+                            label: {
+                                show: true,
+                                color: '#333',
+                                fontSize: 9
+                            }
+                        }
+                    ]
+                };
+
+                myChart.setOption(option);
+            })
+            .catch(error => {
+                console.error('地图加载失败:', error);
+                document.getElementById('map').innerHTML = `
+                    <div class="loading">
+                        <div style="color: #e74c3c; font-size: 16px;">❌ 地图加载失败</div>
+                        <div style="font-size: 12px; margin-top: 10px;">请检查网络连接后刷新页面</div>
+                    </div>
+                `;
+            });
+
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    </script>
+</body>
+</html>
